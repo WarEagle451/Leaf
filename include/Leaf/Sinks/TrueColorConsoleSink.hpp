@@ -18,7 +18,10 @@ namespace Leaf::Sinks
 
 		void Log(const Details::Log& log) final override
 		{
-			_Mutex.lock(); // waiting for lock to be available
+			if (log.Level < _LogLevel)
+				return;
+
+			_Mutex.lock(); // waiting for lock to be available to prevent an output jumping ahead of another output
 			_Mutex.unlock();
 			Details::ThreadPool::Get().QueueJob(std::bind(&Task, log, _Pattern, std::ref<Mutex>(_Mutex)));
 		}
@@ -42,7 +45,7 @@ namespace Leaf::Sinks
 			message += Details::Log::BuildFinalMessage(log, pattern) + "\033[0m";
 			
 			mutex.lock();
-			std::cout << message << std::endl;
+			std::cout << message << std::endl; // THIS IS SO SLOW, IS THERE A WAY TO SPEED THIS UP
 			mutex.unlock();
 		}
 	private:
@@ -51,10 +54,10 @@ namespace Leaf::Sinks
 
 	template<> TrueColorConsoleSink<Details::NullMutex>::TrueColorConsoleSink() :
 		Sink(false),
-		_Mutex(Details::NullConsoleMutex::GetInstance()) {}
+		_Mutex(Details::NullConsoleMutex::Get()) {}
 	template<> TrueColorConsoleSink<std::mutex>::TrueColorConsoleSink() :
 		Sink(true),
-		_Mutex(Details::ConsoleMutex::GetInstance()) {}
+		_Mutex(Details::ConsoleMutex::Get()) {}
 
 	using TrueColorConsoleSinkST = TrueColorConsoleSink<Details::NullMutex>;
 	using TrueColorConsoleSinkMT = TrueColorConsoleSink<std::mutex>;

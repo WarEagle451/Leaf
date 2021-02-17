@@ -39,6 +39,12 @@ namespace Leaf::Details
 					multithreadedSinks++;
 			ThreadPool::Get().CheckSize(multithreadedSinks);
 		}
+
+		void SetGlobalLevel(Severity lvl)
+		{
+			for (std::shared_ptr<Logger> ptr : _Registry)
+				ptr->_LogLevel = lvl;
+		}
 	private:
 		std::vector<std::shared_ptr<Logger>> _Registry;
 	};

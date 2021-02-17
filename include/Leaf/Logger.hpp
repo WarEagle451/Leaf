@@ -4,112 +4,78 @@
 #pragma once
 #include <Leaf/Sinks/Sink.hpp>
 #include <Leaf/Sinks/TracingSink.hpp>
+#include <Leaf/Details/RecursiveUnpack.hpp>
 
-#include <vector>
-#include <sstream>
 #include <assert.h>
 #include <deque>
 
-namespace Leaf::Details
-{
-	template<typename T> static void RecursiveUnpack(std::vector<std::string>* unpackedStrings, std::ostringstream& outStream, const T& type)
-	{
-		outStream << std::setprecision(15) << type;
-		unpackedStrings->emplace_back(outStream.str());
-		outStream.str("");
-	}
-
-	template<typename First, typename... Args> static void RecursiveUnpack(std::vector<std::string>* unpackedStrings, std::ostringstream& outStream, First first, Args... args)
-	{
-		RecursiveUnpack(unpackedStrings, outStream, first);
-		RecursiveUnpack(unpackedStrings, outStream, args...);
-	}
-
-	static bool IsNumber(char c)
-	{
-		switch (c)
-		{
-		case '0': return true;
-		case '1': return true;
-		case '2': return true;
-		case '3': return true;
-		case '4': return true;
-		case '5': return true;
-		case '6': return true;
-		case '7': return true;
-		case '8': return true;
-		case '9': return true;
-		default: return false;
-		}
-	}
-
-	class Registry; // this is defined here because Logger needs to be a friend class of Registry
-}
-
 namespace Leaf
 {
+	class Details::Registry;
 	class Logger
 	{
 		friend class Details::Registry;
 	public:
-		Logger(std::string&& name) :
-			_Name(std::move(name)),
+		Logger(std::string_view name) :
+			_Name(name),
 			_LogLevel(Severity::Trace) {}
-		template<class It> Logger(std::string&& name, It begin, It end) :
-			_Name(std::move(name)),
+		template<class It> Logger(std::string_view name, It begin, It end) :
+			_Name(name),
 			_LogLevel(Severity::Trace),
 			_Sinks(begin, end) {}
 	private:
 		void Submit(Severity lvl, std::string_view view)
 		{
-			if (lvl >= _LogLevel)
-				for (SinkPtr sink : _Sinks)
-					sink->Log(Details::Log(lvl, view, _Name));
+			if (lvl < _LogLevel)
+				return;
+
+			for (SinkPtr sink : _Sinks)
+				sink->Log(Details::Log(lvl, view, _Name));
 		}
 
 		template<class T> void Submit(Severity lvl, const T& type)
 		{
-			if (lvl >= _LogLevel)
-			{
-				_OSStream << std::setprecision(15) << type;
-				for (SinkPtr sink : _Sinks)
-					sink->Log(Details::Log(lvl, std::string_view(_OSStream.str()), _Name));
-				_OSStream.str("");
-			}
+			if (lvl < _LogLevel)
+				return;
+
+			_OSS << std::setprecision(15) << type;
+			for (SinkPtr sink : _Sinks)
+				sink->Log(Details::Log(lvl, std::string_view(_OSS.str()), _Name));
+			_OSS.str("");
 		}
 
 		template<class... Args> void Submit(Severity lvl, std::string_view view, Args&&... args)
 		{
-			if (lvl >= _LogLevel)
-			{
-				Details::RecursiveUnpack(&_UnpackedStrings, _OSStream, args...);
+			if (lvl < _LogLevel)
+				return;
 
-				if (view.back() == '{')
-					assert(!"Missing closing bracket!");
+			Details::RecursiveUnpack(&_UnpackedStrings, _OSS, args...);
 
-				for (size_t i = 0; i < view.size(); i++)
-					if (view[i] == '{')
+			if (view.back() == '{')
+				assert(!"Missing closing bracket!");
+
+			for (size_t i = 0; i < view.size(); i++)
+				if (view[i] == '{')
+				{
+					std::string num{};
+					i++;
+					while (std::isdigit(view[i]))
 					{
-						std::string num{};
+						num += view[i];
 						i++;
-						while (Details::IsNumber(view[i]))
-						{
-							num += view[i];
-							i++;
-						}
-
-						_OSStream << _UnpackedStrings[std::stoi(num)];
-
-						if (view[i] != '}')
-							assert(!"Mis-matched brackets!");
 					}
-					else _OSStream << view[i];
 
-				_UnpackedStrings.clear();
-				for (SinkPtr sink : _Sinks)
-					sink->Log(Details::Log(lvl, std::string_view(_OSStream.str()), _Name));
-				_OSStream.str("");
-			}
+					_OSS << _UnpackedStrings[std::stoi(num)];
+
+					if (view[i] != '}')
+						assert(!"Mis-matched brackets!");
+				}
+				else _OSS << view[i];
+
+			_UnpackedStrings.clear();
+			for (SinkPtr sink : _Sinks)
+				sink->Log(Details::Log(lvl, std::string_view(_OSS.str()), _Name));
+			_OSS.str("");
 		}
 	public:
 		void Trace(std::string_view view)											{ Submit(Severity::Trace, view); }
@@ -160,7 +126,7 @@ namespace Leaf
 		void SetLevel(Severity lvl) { _LogLevel = lvl; }
 
 		const std::vector<SinkPtr>& GetSinks() { return _Sinks; }
-	private:
+	protected:
 		std::vector<SinkPtr> _Sinks;
 		std::string _Name;
 		Severity _LogLevel;
@@ -169,6 +135,6 @@ namespace Leaf
 
 		// Unpack stuff // should this be universal? depends on multithreading
 		std::vector<std::string> _UnpackedStrings;
-		std::ostringstream _OSStream;
+		std::ostringstream _OSS;
 	};
 }

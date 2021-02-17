@@ -21,6 +21,9 @@ namespace Leaf::Sinks
 
 		void Log(const Details::Log& log) final override
 		{
+			if (log.Level < _LogLevel)
+				return;
+
 			_Mutex.lock(); // waiting for lock to be available
 			_Mutex.unlock();
 			Details::ThreadPool::Get().QueueJob(std::bind(&Task, log, _Pattern, std::ref<Mutex>(_Mutex), std::ref<std::ofstream>(_OutStream)));
@@ -42,10 +45,10 @@ namespace Leaf::Sinks
 
 	template<> BasicFileSink<Details::NullMutex>::BasicFileSink(std::string_view filePath) :
 		Sink(false),
-		_Mutex(Details::NullFileMutex::GetInstance()) { _OutStream.open(filePath); }
+		_Mutex(Details::NullFileMutex::Get()) { _OutStream.open(filePath); }
 	template<> BasicFileSink<std::mutex>::BasicFileSink(std::string_view filePath) :
 		Sink(true),
-		_Mutex(Details::FileMutex::GetInstance()) { _OutStream.open(filePath); }
+		_Mutex(Details::FileMutex::Get()) { _OutStream.open(filePath); }
 
 	using BasicFileSinkST = BasicFileSink<Details::NullMutex>;
 	using BasicFileSinkMT = BasicFileSink<std::mutex>;

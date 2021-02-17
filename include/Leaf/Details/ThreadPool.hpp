@@ -8,10 +8,6 @@
 #include <functional>
 #include <mutex>
 
-#include <iostream> // yeet?
-
-// TODO: modify this prob remove locks
-
 #define LEAF_MAX_THREADS std::thread::hardware_concurrency()
 
 namespace Leaf::Details
@@ -85,7 +81,7 @@ namespace Leaf::Details
 	private:
 		std::mutex _JobMutex;
 		std::condition_variable _Condition;
-		bool _Shutdown;
+		std::atomic<bool> _Shutdown;
 		std::queue<Job> _JobQueue;
 		std::vector<std::thread> _Threads;
 	};

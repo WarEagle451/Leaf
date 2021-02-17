@@ -56,6 +56,9 @@ namespace Leaf::Sinks
 
 		void Log(const Details::Log& log) final override
 		{
+			if (log.Level < _LogLevel)
+				return;
+
 			_Mutex.lock(); // waiting for lock to be available
 			_Mutex.unlock();
 			Details::ThreadPool::Get().QueueJob(std::bind(&Task, log, _Pattern, std::ref<Mutex>(_Mutex), std::ref<MessageBuffer>(_Buffer)));
@@ -81,11 +84,11 @@ namespace Leaf::Sinks
 
 	template<> TracingSink<Details::NullMutex>::TracingSink(size_t size) :
 		Sink(false),
-		_Mutex(Details::NullBufferMutex::GetInstance()),
+		_Mutex(Details::NullBufferMutex::Get()),
 		_Buffer(size) {}
 	template<> TracingSink<std::mutex>::TracingSink(size_t size) :
 		Sink(true),
-		_Mutex(Details::BufferMutex::GetInstance()),
+		_Mutex(Details::BufferMutex::Get()),
 		_Buffer(size) {}
 
 	using TracingSinkST = TracingSink<Details::NullMutex>;

@@ -10,7 +10,7 @@ namespace Leaf::Details
 {
 	struct NullConsoleMutex
 	{
-		static NullMutex& GetInstance()
+		static NullMutex& Get()
 		{
 			static NullMutex Instance;
 			return Instance;
@@ -19,7 +19,7 @@ namespace Leaf::Details
 
 	struct ConsoleMutex
 	{
-		static std::mutex& GetInstance()
+		static std::mutex& Get()
 		{
 			static std::mutex Instance;
 			return Instance;
@@ -28,7 +28,7 @@ namespace Leaf::Details
 
 	struct NullFileMutex
 	{
-		static NullMutex& GetInstance()
+		static NullMutex& Get()
 		{
 			static NullMutex Instance;
 			return Instance;
@@ -37,16 +37,16 @@ namespace Leaf::Details
 
 	struct FileMutex
 	{
-		static std::mutex& GetInstance()
+		static std::mutex& Get()
 		{
 			static std::mutex Instance;
 			return Instance;
 		}
 	};
 
-	struct NullBufferMutex
+	struct NullBufferMutex // Needed? probs need to be per tracing sink TODO:
 	{
-		static NullMutex& GetInstance()
+		static NullMutex& Get()
 		{
 			static NullMutex Instance;
 			return Instance;
@@ -55,7 +55,7 @@ namespace Leaf::Details
 
 	struct BufferMutex
 	{
-		static std::mutex& GetInstance()
+		static std::mutex& Get()
 		{
 			static std::mutex Instance;
 			return Instance;

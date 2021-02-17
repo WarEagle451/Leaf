@@ -18,6 +18,9 @@ namespace Leaf::Sinks
 
 		void Log(const Details::Log& log) final override
 		{
+			if (log.Level < _LogLevel)
+				return;
+
 			_Mutex.lock(); // waiting for lock to be available
 			_Mutex.unlock();
 			Details::ThreadPool::Get().QueueJob(std::bind(&Task, log, _Pattern, std::ref<Mutex>(_Mutex)));
@@ -37,10 +40,10 @@ namespace Leaf::Sinks
 
 	template<> BasicConsoleSink<Details::NullMutex>::BasicConsoleSink() :
 		Sink(false),
-		_Mutex(Details::NullConsoleMutex::GetInstance()) {}
+		_Mutex(Details::NullConsoleMutex::Get()) {}
 	template<> BasicConsoleSink<std::mutex>::BasicConsoleSink() :
 		Sink(true),
-		_Mutex(Details::ConsoleMutex::GetInstance()) {}
+		_Mutex(Details::ConsoleMutex::Get()) {}
 
 	using BasicConsoleSinkST = BasicConsoleSink<Details::NullBufferMutex>;
 	using BasicConsoleSinkMT = BasicConsoleSink<std::mutex>;
