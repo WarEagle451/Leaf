@@ -1,10 +1,9 @@
 // Copyright(c) 2021-present, Noah LeBlanc.
-// Distributed under the MIT License (http://opensource.org/licenses/MIT)
 
 #pragma once
 #include <Leaf/Sinks/Sink.hpp>
-#include <Leaf/Details/Globals.hpp>
-#include <Leaf/Details/ThreadPool.hpp>
+#include <Leaf/Details/StringBuilder.hpp>
+#include <Leaf/Details/NullMutex.hpp>
 
 #include <fstream>
 
@@ -13,42 +12,43 @@ namespace Leaf::Sinks
 	template<class Mutex> class BasicFileSink final : public Sink
 	{
 	public:
-		BasicFileSink(std::string_view filePath) { assert(!"Mutex has no specialization!"); }
-		~BasicFileSink()
-		{
-			_OutStream.close();
-		}
+		BasicFileSink(std::string_view filePath);
+		~BasicFileSink() { _Out.close(); }
 
-		void Log(const Details::Log& log) final override
+		void Log(const Details::Payload& payload) override
 		{
-			if (log.Level < _LogLevel)
+			if (payload.Log.Level < _Level)
 				return;
 
-			_Mutex.lock(); // waiting for lock to be available
-			_Mutex.unlock();
-			Details::ThreadPool::Get().QueueJob(std::bind(&Task, log, _Pattern, std::ref<Mutex>(_Mutex), std::ref<std::ofstream>(_OutStream)));
-		}
-	private:
-		static void Task(const Details::Log& log, std::string_view pattern, Mutex& mutex, std::ofstream& out)
-		{
-			std::string message(Details::Log::BuildFinalMessage(log, pattern)); // TODO: find a way to make this a string_view instead of string
-			message += '\n';
+			std::string output(_StrBuilder.BuildOutput(payload));
+			output += '\n';
 
-			mutex.lock();
-			out.write(message.data(), message.size());
-			mutex.unlock();
+			std::lock_guard<Mutex> l(_Mutex);
+			_Out.write(output.data(), output.size());
+		}
+
+		void SetPattern(std::string_view pattern) override
+		{
+			std::lock_guard<Mutex> l(_Mutex);
+			_StrBuilder.SetPattern(pattern);
+		}
+
+		void OpenNewFilePath(std::string_view filePath)
+		{
+			std::lock_guard<Mutex> l(_Mutex);
+			_Out.close();
+			_Out.open(filePath);
 		}
 	private:
-		Mutex& _Mutex;
-		std::ofstream _OutStream;
+		Mutex _Mutex;
+		Details::StringBuilder _StrBuilder;
+		std::ofstream _Out;
 	};
 
 	template<> BasicFileSink<Details::NullMutex>::BasicFileSink(std::string_view filePath) :
-		Sink(false),
-		_Mutex(Details::NullFileMutex::Get()) { _OutStream.open(filePath); }
+		_StrBuilder() { _Out.open(filePath); }
 	template<> BasicFileSink<std::mutex>::BasicFileSink(std::string_view filePath) :
-		Sink(true),
-		_Mutex(Details::FileMutex::Get()) { _OutStream.open(filePath); }
+		_StrBuilder() { _Out.open(filePath); }
 
 	using BasicFileSinkST = BasicFileSink<Details::NullMutex>;
 	using BasicFileSinkMT = BasicFileSink<std::mutex>;

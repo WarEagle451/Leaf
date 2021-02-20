@@ -1,63 +1,63 @@
 // Copyright(c) 2021-present, Noah LeBlanc.
-// Distributed under the MIT License (http://opensource.org/licenses/MIT)
 
 #pragma once
 #include <Leaf/Sinks/Sink.hpp>
+#include <Leaf/Details/StringBuilder.hpp>
 #include <Leaf/Details/Globals.hpp>
-#include <Leaf/Details/ThreadPool.hpp>
 
 #include <iostream>
-#include <assert.h>
 
 namespace Leaf::Sinks
 {
+	static const std::array<std::string, Severity::Levels> DefaultTrueColors{ "\033[38;2;230;230;230m", "\033[38;2;240;130;20m", "\033[38;2;50;150;40m", "\033[38;2;230;185;50m", "\033[38;2;200;50;50m", "\033[38;2;0;0;0;48;2;200;50;50m" };
+
 	template<class Mutex> class TrueColorConsoleSink final : public Sink
 	{
 	public:
-		 TrueColorConsoleSink() { assert(!"Mutex has no specialization!"); }
+		TrueColorConsoleSink();
 
-		void Log(const Details::Log& log) final override
+		void Log(const Details::Payload& payload) override
 		{
-			if (log.Level < _LogLevel)
+			if (payload.Log.Level < _Level)
 				return;
 
-			_Mutex.lock(); // waiting for lock to be available to prevent an output jumping ahead of another output
-			_Mutex.unlock();
-			Details::ThreadPool::Get().QueueJob(std::bind(&Task, log, _Pattern, std::ref<Mutex>(_Mutex)));
+			std::string output(_StrBuilder.BuildOutput(payload));
+
+			std::lock_guard<Mutex> l(_Mutex);
+			std::cout << _Colors[payload.Log.Level] << output << "\033[0m" << std::endl;
 		}
-	private:
-		static void Task(const Details::Log& log, std::string_view pattern, Mutex& mutex)
+
+		void SetPattern(std::string_view pattern) override
 		{
-			std::string message{};
+			std::lock_guard<Mutex> l(_Mutex);
+			_StrBuilder.SetPattern(pattern);
+		}
 
-			switch (log.Level)
-			{
-			case Severity::Trace:	message += "\033[38;2;230;230;230m"; break;
-			case Severity::Debug:	message += "\033[38;2;240;130;20m"; break;
-			case Severity::Info:	message += "\033[38;2;50;150;40m"; break;
-			case Severity::Warn:	message += "\033[38;2;230;185;50m"; break;
-			case Severity::Error:	message += "\033[38;2;200;50;50m"; break;
-			case Severity::Fatal:	message += "\033[38;2;0;0;0;48;2;200;50;50m"; break;
-			case Severity::None: break;
-			default: assert(!"TrueColorConsoleSink error! Unknown severity level detected!");
-			}
+		void SetColor(Severity severity, std::string_view& color)
+		{
+			std::lock_guard<Mutex> l(_Mutex);
+			_Colors[severity] = color;
+		}
 
-			message += Details::Log::BuildFinalMessage(log, pattern) + "\033[0m";
-			
-			mutex.lock();
-			std::cout << message << std::endl; // THIS IS SO SLOW, IS THERE A WAY TO SPEED THIS UP
-			mutex.unlock();
+		void SetColors(std::array<std::string, Severity::Levels>&& colors)
+		{
+			std::lock_guard<Mutex> l(_Mutex);
+			_Colors = std::move(colors);
 		}
 	private:
 		Mutex& _Mutex;
+		Details::StringBuilder _StrBuilder;
+		std::array<std::string, Severity::Levels> _Colors;
 	};
 
 	template<> TrueColorConsoleSink<Details::NullMutex>::TrueColorConsoleSink() :
-		Sink(false),
-		_Mutex(Details::NullConsoleMutex::Get()) {}
+		_Mutex(Details::NullConsoleMutex::Get()),
+		_StrBuilder(),
+		_Colors(DefaultTrueColors) {}
 	template<> TrueColorConsoleSink<std::mutex>::TrueColorConsoleSink() :
-		Sink(true),
-		_Mutex(Details::ConsoleMutex::Get()) {}
+		_Mutex(Details::ConsoleMutex::Get()),
+		_StrBuilder(),
+		_Colors(DefaultTrueColors) {}
 
 	using TrueColorConsoleSinkST = TrueColorConsoleSink<Details::NullMutex>;
 	using TrueColorConsoleSinkMT = TrueColorConsoleSink<std::mutex>;

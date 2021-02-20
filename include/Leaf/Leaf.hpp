@@ -2,19 +2,17 @@
 // Distributed under the MIT License (http://opensource.org/licenses/MIT)
 
 #pragma once
-#include <Leaf/Logger.hpp>
-#include <Leaf/Version.hpp>
-#include <Leaf/Details/Registry.hpp>
+	#include <Leaf/Version.hpp>
+	#include <Leaf/Details/Registry.hpp>
 
 #define LEAF_LOGGER
 
-//! accomodate for this stuff
-//! - Windows 10 Version 1511 update which unexpectedly implemented support for ANSI escape sequences
-//! - This is not the default behavior and must be enabled programmatically with the Win32 API via SetConsoleMode(handle, ENABLE_VIRTUAL_TERMINAL_PROCESSING)
-//! 
-//! make trace, debug etc functions that can be used without creating a logger // will not include any sinks // only out to console
-//! basically detach the submit funcs from the logger
-//! 
-//! Make a thing that will add the file name and and line // will be %F
-//! 
-//! TODO: improve the locking system, stuff that output to the console is #1 problem, for somereason it is slower than not multithreading
+namespace Leaf
+{
+	static void Register(std::shared_ptr<Logger> logger)	{ Details::Registry::Get().Register(logger); }
+	static void Deregister(std::string_view loggerName)		{ Details::Registry::Get().Deregister(loggerName); }
+
+	static std::shared_ptr<Logger> Get(std::string_view loggerName)	{ Details::Registry::Get().GetLogger(loggerName); }
+	static void SetPattern(std::string_view pattern)				{ Details::Registry::Get().SetPattern(pattern); }
+	static void SetLevel(Severity severity)							{ Details::Registry::Get().SetLevel(severity); }
+}

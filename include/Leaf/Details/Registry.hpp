@@ -1,60 +1,66 @@
 // Copyright(c) 2021-present, Noah LeBlanc.
-// Distributed under the MIT License (http://opensource.org/licenses/MIT)
 
 #pragma once
 #include <Leaf/Logger.hpp>
-
-#include <iostream>
-
-// TODO: make this thread safe
 
 namespace Leaf::Details
 {
 	class Registry
 	{
+	private:
+		Registry() = default;
 	public:
 		static Registry& Get()
 		{
-			static Registry Instance;
-			return Instance;
+			static Registry s_Instance;
+			return s_Instance;
 		}
-	private:
-		Registry() {}
-	public:
+
 		Registry(const Registry&) = delete;
-		void operator=(const Registry&) = delete;
+		Registry &operator=(const Registry&) = delete;
 
 		void Register(std::shared_ptr<Logger> logger)
 		{
-			for (std::shared_ptr<Logger> ptr : _Registry)
+			for (std::shared_ptr<Logger>& ptr : _Registry)
 				if (ptr->_Name == logger->_Name)
-					assert(!"Duplicate logger names!");
+					return;///("Duplicate logger name!"); // TODO: throw exception
 			_Registry.emplace_back(logger);
-			
-			size_t multithreadedSinks(0);
-			for (SinkPtr sink : logger->_Sinks)
-				if (multithreadedSinks >= LEAF_MAX_THREADS) // TODO make sure this wont interfere with Maple's threadpool
-					break;
-				else if (sink->_Multithreaded)
-					multithreadedSinks++;
-			ThreadPool::Get().CheckSize(multithreadedSinks);
 		}
 
-		void SetGlobalLevel(Severity lvl)
+		void Deregister(std::string_view loggerName)
+		{
+			for (auto it = _Registry.begin(); it != _Registry.end(); it++)
+				if ((*it)->_Name == loggerName)
+				{
+					_Registry.erase(it);
+					return;
+				}
+		}
+
+		std::shared_ptr<Logger>& GetLogger(std::string_view loggerName)
 		{
 			for (std::shared_ptr<Logger> ptr : _Registry)
-				ptr->_LogLevel = lvl;
+				if (ptr->_Name == loggerName)
+					return ptr;
+		}
+
+		void SetLevel(Severity severity)
+		{
+			for (std::shared_ptr<Logger>& ptr : _Registry)
+				ptr->SetLevel(severity);
+		}
+
+		void SetPattern(std::string_view pattern)
+		{
+			for (std::shared_ptr<Logger>& ptr : _Registry)
+				ptr->SetPattern(pattern);
+		}
+
+		void Shutdown()
+		{
+			_Registry.clear();
 		}
 	private:
 		std::vector<std::shared_ptr<Logger>> _Registry;
 	};
-
-}
-
-namespace Leaf
-{
-	static void Register(std::shared_ptr<Logger> logger)
-	{
-		Details::Registry::Get().Register(logger);
-	}
 }
