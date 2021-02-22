@@ -2,8 +2,8 @@
 // Distributed under the MIT License (http://opensource.org/licenses/MIT)
 
 #pragma once
-	#include <Leaf/Version.hpp>
-	#include <Leaf/Details/Registry.hpp>
+#include <Leaf/Version.hpp>
+#include <Leaf/Details/Registry.hpp>
 
 #define LEAF_LOGGER
 

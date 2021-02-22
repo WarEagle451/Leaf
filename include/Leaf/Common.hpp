@@ -4,7 +4,6 @@
 #include <string>
 #include <memory>
 #include <atomic>
-#include <exception>
 #include <array>
 
 namespace Leaf

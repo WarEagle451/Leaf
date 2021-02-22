@@ -14,15 +14,27 @@ namespace Leaf::Details
 	{
 	public:
 		Archive() :
-			Enabled(false),
+			_Enabled(false),
 			_StrBuilder(),
 			_Capacity(0) {}
 
 		void Enable(std::string_view pattern, size_t capacity)
 		{
 			std::lock_guard<std::mutex> l(_Mutex);
+			_Enabled = true;
 			_StrBuilder.SetPattern(std::move(pattern));
 			_Capacity = capacity;
+		}
+
+		void Disable()
+		{
+			std::lock_guard<std::mutex> l(_Mutex);
+			_Enabled = false;
+		}
+
+		const bool Enabled()
+		{
+			return _Enabled;
 		}
 
 		void SetPattern(std::string_view pattern)
@@ -33,6 +45,7 @@ namespace Leaf::Details
 
 		void SetCapacity(size_t capacity)
 		{
+			std::lock_guard<std::mutex> l(_Mutex);
 			_Capacity = capacity;
 		}
 
@@ -55,9 +68,8 @@ namespace Leaf::Details
 			std::lock_guard<std::mutex> l(_Mutex);
 			return _Data;
 		}
-	public:
-		bool Enabled;
 	private:
+		bool _Enabled;
 		std::deque<LogMessage> _Data;
 		StringBuilder _StrBuilder;
 		std::mutex _Mutex;

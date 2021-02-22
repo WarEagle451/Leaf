@@ -5,6 +5,7 @@
 #include <Leaf/Sinks/Sink.hpp>
 #include <Leaf/Details/Unpack.hpp>
 #include <Leaf/Details/Payload.hpp>
+#include <Leaf/Details/ThreadPool.hpp>
 
 namespace Leaf
 {
@@ -33,6 +34,7 @@ namespace Leaf
 			if (severity < _Level)
 				return;
 
+			std::lock_guard<std::mutex> l(_Mutex);
 			_OSS << std::setprecision(15) << type;
 			Details::Payload payload{ LogMessage{ severity, _OSS.str() }, _Name };
 			_OSS.str("");
@@ -44,6 +46,7 @@ namespace Leaf
 			if (severity < _Level)
 				return;
 
+			std::lock_guard<std::mutex> l(_Mutex);
 			Details::Unpack(&_UnpackedStrings, _OSS, args...);
 			
 			for (size_t i = 0; i < format.size(); i++)
@@ -85,28 +88,30 @@ namespace Leaf
 
 		void SetPattern(std::string_view pattern)
 		{
+			std::lock_guard<std::mutex> l(_Mutex);
 			for (SinkPtr& sink : _Sinks)
 				sink->SetPattern(pattern);
 		}
 
 		std::vector<SinkPtr>& GetSinks()
 		{
+			std::lock_guard<std::mutex> l(_Mutex);
 			return _Sinks;
 		}
 
-		void EnableArchive(std::string_view pattern, size_t capacity)	{ _Archive.Enabled = true; _Archive.Enable(pattern, capacity); }
-		void DisableArchive()											{ _Archive.Enabled = false; }
+		void EnableArchive(std::string_view pattern, size_t capacity)	{ _Archive.Enable(pattern, capacity); }
+		void DisableArchive()											{ _Archive.Disable(); }
 		const std::deque<LogMessage>& GetArchiveData()					{ return _Archive.Data(); }
 		void ClearArchive()												{ _Archive.Clear(); }
 	private:
 		void Submit(const Details::Payload& payload)
 		{
-			if (_Archive.Enabled)
+			if (_Archive.Enabled())
 				_Archive.Push(payload);
 			if (payload.Log.Level >= _Level)
 				for (SinkPtr& sink : _Sinks)
 					if (sink->Loggable(payload.Log.Level))
-						sink->Log(payload);
+						Details::ThreadPool::Get().Queue(std::bind(&Sinks::Sink::Log, sink, payload));
 		}
 	private:
 		std::string _Name;
@@ -116,5 +121,6 @@ namespace Leaf
 
 		std::ostringstream _OSS;
 		std::vector<std::string> _UnpackedStrings;
+		std::mutex _Mutex;
 	};
 }

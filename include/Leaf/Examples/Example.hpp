@@ -2,14 +2,14 @@
 
 #pragma once
 #include <Leaf/Leaf.hpp>
-#include <Leaf/Sinks/BasicFileSink.hpp>
+#include <Leaf/Sinks/TrueColorConsoleSink.hpp>
 
 namespace Leaf::Examples
 {
 	static void CallExampleLogger()
 	{
 		std::vector<Leaf::SinkPtr> sinks;
-		sinks.emplace_back(std::make_shared<Leaf::Sinks::BasicFileSinkST>("Example.log"));
+		sinks.emplace_back(std::make_shared<Leaf::Sinks::TrueColorConsoleSinkMT>());
 		sinks[0]->SetPattern("[%T] [%S] %N: %M");
 
 		std::shared_ptr<Leaf::Logger> logger = std::make_shared<Leaf::Logger>("Example Logger", sinks.begin(), sinks.end());
