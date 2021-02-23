@@ -111,7 +111,12 @@ namespace Leaf
 			if (payload.Log.Level >= _Level)
 				for (SinkPtr& sink : _Sinks)
 					if (sink->Loggable(payload.Log.Level))
-						Details::ThreadPool::Get().Queue(std::bind(&Sinks::Sink::Log, sink, payload));
+					{
+						std::promise<bool> p;
+						std::future<bool> f(p.get_future());
+						Details::ThreadPool::Get().Queue([&]{ sink->Log(payload); p.set_value(true); }); /// TODO: payload is not being referenced
+						f.wait();
+					}
 		}
 	private:
 		std::string _Name;
