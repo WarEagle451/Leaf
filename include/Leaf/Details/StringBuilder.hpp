@@ -5,6 +5,7 @@
 #include <Leaf/Details/Payload.hpp>
 
 #include <ctime>
+#include <mutex>
 
 namespace Leaf::Details
 {
@@ -44,12 +45,14 @@ namespace Leaf::Details
 
 		void SetPattern(std::string_view pattern)
 		{
+			std::lock_guard<std::mutex> l(_Mutex);
 			VerifyPattern(pattern);
 			_Pattern = pattern;
 		}
 
 		std::string BuildOutput(const Payload& payload)
 		{
+			std::lock_guard<std::mutex> l(_Mutex);
 			std::string out{};
 			for (size_t i = 0; i < _Pattern.size(); i++)
 				if (_Pattern[i] == '%')
@@ -67,5 +70,6 @@ namespace Leaf::Details
 		}
 	private:
 		std::string _Pattern;
+		std::mutex _Mutex;
 	};
 }

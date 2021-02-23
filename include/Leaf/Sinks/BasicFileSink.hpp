@@ -29,7 +29,6 @@ namespace Leaf::Sinks
 
 		void SetPattern(std::string_view pattern) override
 		{
-			std::lock_guard<Mutex> l(_Mutex);
 			_StrBuilder.SetPattern(pattern);
 		}
 
