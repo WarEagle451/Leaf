@@ -1,7 +1,6 @@
 // Copyright(c) 2021-present, Noah LeBlanc.
 
 #pragma once
-#include <Leaf/Common.hpp>
 #include <Leaf/Details/Payload.hpp>
 
 #include <ctime>
@@ -52,7 +51,7 @@ namespace Leaf::Details
 			_Pattern = pattern;
 		}
 
-		std::string BuildOutput(const Payload& payload) /// TODO: should probaly use fmt instead and when premake and cmake supports C++20 use 
+		std::string BuildOutput(const Payload& payload) /// TODO: should probaly use fmt instead and when premake and cmake supports C++20 use
 		{
 			std::lock_guard<std::mutex> l(_Mutex);
 			for (size_t i = 0; i < _Pattern.size(); i++)
@@ -63,9 +62,8 @@ namespace Leaf::Details
 					case 'S': _OSS << SeverityToName(payload.Log.Level); break;
 					case 's': _OSS << SeverityToInitial(payload.Log.Level); break;
 					case 'T': _OSS << TimeToString(); break;
-					case 't': _OSS << std::this_thread::get_id(); break;
+					case '%': _OSS << '%'; break;
 					case '?': _OSS << payload.Log.Message; break;
-					case '%': _OSS << '%';
 					}
 				else _OSS << _Pattern[i];
 

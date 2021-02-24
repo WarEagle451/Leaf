@@ -25,7 +25,7 @@ namespace Leaf::Details
 		~ThreadPool()
 		{
 			{
-				std::unique_lock<std::mutex> l(_Mutex);
+				std::lock_guard<std::mutex> l(_Mutex);
 				_Shutdown = true;
 				cv_Task.notify_all();
 			}
@@ -79,11 +79,11 @@ namespace Leaf::Details
 					_TasksRunning++;
 					job = std::move(_JobQueue.front());
 					_JobQueue.pop();
-			
+
 					l.unlock();
 					job();
 					l.lock();
-			
+
 					_TasksRunning--;
 					cv_Finished.notify_one();
 				}

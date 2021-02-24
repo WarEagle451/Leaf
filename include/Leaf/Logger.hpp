@@ -4,7 +4,6 @@
 #include <Leaf/Archive.hpp>
 #include <Leaf/Sinks/Sink.hpp>
 #include <Leaf/Details/Unpack.hpp>
-#include <Leaf/Details/Payload.hpp>
 #include <Leaf/Details/ThreadPool.hpp>
 
 #include <iomanip>
@@ -80,7 +79,7 @@ namespace Leaf
 		template<typename T> void Fatal(const T& type)									{ Log(Severity::Fatal, type); }
 		template<typename... Args> void Fatal(std::string_view format, Args&&... args)	{ Log(Severity::Fatal, format, args...); }
 
-		const std::vector<SinkPtr>& GetSinks() { return _Sinks; }
+		const std::vector<SinkPtr>& GetSinks() const { return _Sinks; }
 
 		void SetLevel(Severity severity) { _Level.store(severity); }
 
@@ -90,7 +89,6 @@ namespace Leaf
 			for (SinkPtr& sink : _Sinks)
 				sink->SetPattern(pattern);
 		}
-
 		void AssignArchive(std::shared_ptr<ArchiveBase> archive)
 		{
 			std::lock_guard<std::mutex> l(_Mutex);
@@ -108,10 +106,10 @@ namespace Leaf
 			if (payload.Log.Level >= _Level)
 			{
 				if (_Archive && _Archive->Enabled)
-					_Archive->Store(payload);
+					Details::ThreadPool::Get().Queue([payload, this]{ _Archive->Store(payload); });
 				for (SinkPtr& sink : _Sinks)
 					if (sink->Loggable(payload.Log.Level))
-						Details::ThreadPool::Get().Queue([sink, payload]{ sink->Log(payload); });
+						Details::ThreadPool::Get().Queue([&]{ sink->Log(payload); });
 				Details::ThreadPool::Get().Wait();
 			}
 		}
@@ -121,6 +119,7 @@ namespace Leaf
 		std::vector<SinkPtr> _Sinks;
 		std::shared_ptr<ArchiveBase> _Archive;
 
+		/// TODO: maybe make an Unpacker class
 		std::ostringstream _OSS;
 		std::vector<std::string> _UnpackedStrings;
 		std::mutex _Mutex;

@@ -9,7 +9,7 @@ namespace Leaf::Details
 	{
 	private:
 		Registry() :
-			_TP(ThreadPool::Get()) {}
+			_ThreadPool(ThreadPool::Get()) {}
 		~Registry() { Shutdown(); }
 	public:
 		static Registry& Get()
@@ -52,9 +52,9 @@ namespace Leaf::Details
 					return ptr;
 		}
 
-		size_t TPSize()
+		size_t ThreadPoolSize()
 		{
-			return _TP.Size();
+			return _ThreadPool.Size();
 		}
 
 		void SetLevel(Severity severity)
@@ -78,7 +78,7 @@ namespace Leaf::Details
 		}
 	private:
 		std::vector<std::shared_ptr<Logger>> _Registry;
-		ThreadPool& _TP;
+		ThreadPool& _ThreadPool;
 		std::mutex _Mutex;
 	};
 }

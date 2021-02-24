@@ -1,12 +1,10 @@
 // Copyright(c) 2021-present, Noah LeBlanc.
 
 #pragma once
-#include <Leaf/Common.hpp>
 #include <Leaf/Details/NullMutex.hpp>
 #include <Leaf/Details/StringBuilder.hpp>
 
 #include <deque>
-#include <functional>
 
 namespace Leaf
 {
@@ -16,7 +14,7 @@ namespace Leaf
 		virtual void Store(const Details::Payload& payload) = 0;
 		virtual void SetCapacity(size_t capacity) = 0;
 		virtual void Clear() = 0;
-		
+
 		const std::deque<LogMessage>& GetBuffer() const { return _Buffer; }
 
 		void SetPattern(std::string_view pattern) { _StrBuilder.SetPattern(pattern); }
@@ -30,7 +28,7 @@ namespace Leaf
 	template<class Mutex> class Archive final : public ArchiveBase
 	{
 	public:
-		Archive(std::string_view pattern, size_t capacity);
+		Archive(std::string_view pattern, size_t capacity) {}
 
 		void Store(const Details::Payload& payload) override
 		{

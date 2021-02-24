@@ -15,7 +15,7 @@ namespace Leaf::Sinks
 		bool Loggable(Severity severity) { return severity >= _Level.load(std::memory_order_relaxed); }
 	protected:
 		a_Severity _Level{ Severity::Trace };
-		Details::StringBuilder _StrBuilder;
+		Details::StringBuilder _StrBuilder{};
 	};
 }
 namespace Leaf { using SinkPtr = std::shared_ptr<Sinks::Sink>; }
