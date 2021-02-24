@@ -14,11 +14,14 @@ namespace Leaf
 	{
 	public:
 		virtual void Store(const Details::Payload& payload) = 0;
+		virtual void SetCapacity(size_t capacity) = 0;
 		virtual void Clear() = 0;
 		
 		const std::deque<LogMessage>& GetBuffer() const { return _Buffer; }
 
 		void SetPattern(std::string_view pattern) { _StrBuilder.SetPattern(pattern); }
+	public:
+		std::atomic<bool> Enabled{ true };
 	protected:
 		std::deque<LogMessage> _Buffer;
 		Details::StringBuilder _StrBuilder{};
@@ -38,16 +41,16 @@ namespace Leaf
 			_Buffer.push_back(LogMessage{ payload.Log.Level, _StrBuilder.BuildOutput(payload) });
 		}
 
+		void SetCapacity(size_t capacity) override
+		{
+			std::lock_guard<Mutex> l(_Mutex);
+			_Capacity = capacity;
+		}
+
 		void Clear() override
 		{
 			std::lock_guard<Mutex> l(_Mutex);
 			_Buffer.clear();
-		}
-
-		void SetCapacity(size_t capacity)
-		{
-			std::lock_guard<Mutex> l(_Mutex);
-			_Capacity = capacity;
 		}
 	private:
 		Mutex _Mutex;

@@ -47,20 +47,20 @@ namespace Leaf
 
 			std::lock_guard<std::mutex> l(_Mutex);
 			Details::Unpack(&_UnpackedStrings, _OSS, args...);
-			
+
 			for (size_t i = 0; i < format.size(); i++)
 				if (format[i] == '{')
 				{
 					std::string num{};
 					while (std::isdigit(format[++i]))
 						num += format[i];
-			
+
 					if (format[i] != '}')
 						; /// TODO: throw exception
 					_OSS << _UnpackedStrings[std::stoi(num)];
 				}
 				else _OSS << format[i];
-			
+
 			Details::Payload payload{ LogMessage{ severity, _OSS.str() }, _Name };
 			_UnpackedStrings.clear();
 			_OSS.str("");
@@ -80,34 +80,35 @@ namespace Leaf
 		template<typename T> void Fatal(const T& type)									{ Log(Severity::Fatal, type); }
 		template<typename... Args> void Fatal(std::string_view format, Args&&... args)	{ Log(Severity::Fatal, format, args...); }
 
-		void SetLevel(Severity severity)
-		{
-			_Level.store(severity);
-		}
+		const std::vector<SinkPtr>& GetSinks() { return _Sinks; }
+
+		void SetLevel(Severity severity) { _Level.store(severity); }
 
 		void SetPattern(std::string_view pattern)
 		{
+			std::lock_guard<std::mutex> l(_Mutex);
 			for (SinkPtr& sink : _Sinks)
 				sink->SetPattern(pattern);
 		}
 
-		const std::vector<SinkPtr>& GetSinks() { return _Sinks; }
-
-		void EnableArchive(std::shared_ptr<ArchiveBase> archive)
+		void AssignArchive(std::shared_ptr<ArchiveBase> archive)
 		{
-			_ArchiveSink = archive;
+			std::lock_guard<std::mutex> l(_Mutex);
+			_Archive = archive;
 			Details::ThreadPool::Get().AdjustPoolSize(Details::ThreadPool::Get().Size() + 1);
 		}
 
-		void DisableArchive()							{ _ArchiveSink.reset(); }
-		const std::deque<LogMessage>& GetArchiveData()	{ return _ArchiveSink->GetBuffer(); }
-		void ClearArchive()								{ _ArchiveSink->Clear(); }
+		void EnableArchive()							{ _Archive->Enabled.store(true, std::memory_order::memory_order_relaxed); }
+		void DisableArchive()							{ _Archive->Enabled.store(false, std::memory_order::memory_order_relaxed); }
+		const std::deque<LogMessage>& GetArchiveData()	{ return _Archive->GetBuffer(); }
+		void ClearArchive()								{ _Archive->Clear(); }
 	private:
 		void Submit(const Details::Payload& payload)
 		{
 			if (payload.Log.Level >= _Level)
 			{
-				_ArchiveSink->Store(payload);
+				if (_Archive && _Archive->Enabled)
+					_Archive->Store(payload);
 				for (SinkPtr& sink : _Sinks)
 					if (sink->Loggable(payload.Log.Level))
 						Details::ThreadPool::Get().Queue([sink, payload]{ sink->Log(payload); });
@@ -118,11 +119,10 @@ namespace Leaf
 		std::string _Name;
 		a_Severity _Level;
 		std::vector<SinkPtr> _Sinks;
-		std::shared_ptr<ArchiveBase> _ArchiveSink;
+		std::shared_ptr<ArchiveBase> _Archive;
 
-		/// TODO: maybe make an Unpacker class
 		std::ostringstream _OSS;
 		std::vector<std::string> _UnpackedStrings;
-		std::mutex _Mutex; // Get Rid of this
+		std::mutex _Mutex;
 	};
 }

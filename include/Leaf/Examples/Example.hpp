@@ -10,7 +10,7 @@ namespace Leaf::Examples
 	{
 		std::vector<Leaf::SinkPtr> sinks;
 		sinks.emplace_back(std::make_shared<Leaf::Sinks::TrueColorConsoleSinkMT>());
-		sinks[0]->SetPattern("[%T] [%S] %N: %M");
+		sinks[0]->SetPattern("[%T] [%s] %N: %?");
 
 		std::shared_ptr<Leaf::Logger> logger = std::make_shared<Leaf::Logger>("Example Logger", sinks.begin(), sinks.end());
 

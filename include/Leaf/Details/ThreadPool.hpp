@@ -43,7 +43,7 @@ namespace Leaf::Details
 		void AdjustPoolSize(size_t size)
 		{
 			std::lock_guard<std::mutex> l(_Mutex);
-			for (size_t i = 0; i < size; i++)
+			for (size_t i = _Threads.size(); i < size; i++)
 				_Threads.emplace_back(std::bind(&ThreadPool::Task, this));
 		}
 
