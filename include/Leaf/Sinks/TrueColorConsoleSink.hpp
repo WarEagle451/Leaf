@@ -2,7 +2,6 @@
 
 #pragma once
 #include <Leaf/Sinks/Sink.hpp>
-#include <Leaf/Details/StringBuilder.hpp>
 #include <Leaf/Details/Globals.hpp>
 
 #include <iostream>
@@ -27,11 +26,6 @@ namespace Leaf::Sinks
 			std::cout << _Colors[payload.Log.Level] << output << "\033[0m" << std::endl;
 		}
 
-		void SetPattern(std::string_view pattern) override
-		{
-			_StrBuilder.SetPattern(pattern);
-		}
-
 		void SetColor(Severity severity, std::string_view& color)
 		{
 			std::lock_guard<Mutex> l(_Mutex);
@@ -45,17 +39,14 @@ namespace Leaf::Sinks
 		}
 	private:
 		Mutex& _Mutex;
-		Details::StringBuilder _StrBuilder;
 		std::array<std::string, Severity::Levels> _Colors;
 	};
 
 	template<> TrueColorConsoleSink<Details::NullMutex>::TrueColorConsoleSink() :
 		_Mutex(Details::NullConsoleMutex::Get()),
-		_StrBuilder(),
 		_Colors(DefaultTrueColors) {}
 	template<> TrueColorConsoleSink<std::mutex>::TrueColorConsoleSink() :
 		_Mutex(Details::ConsoleMutex::Get()),
-		_StrBuilder(),
 		_Colors(DefaultTrueColors) {}
 
 	using TrueColorConsoleSinkST = TrueColorConsoleSink<Details::NullMutex>;

@@ -12,9 +12,6 @@ namespace Leaf::Details
 	class StringBuilder
 	{
 	public:
-		StringBuilder() :
-			_Pattern("") {}
-
 		static void VerifyPattern(std::string_view pattern)
 		{
 			/// TODO: Implement asserting, want a way to send it somewhere first 
@@ -69,7 +66,7 @@ namespace Leaf::Details
 			return out;
 		}
 	private:
-		std::string _Pattern;
+		std::string _Pattern{};
 		std::mutex _Mutex;
 	};
 }

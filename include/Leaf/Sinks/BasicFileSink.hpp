@@ -2,7 +2,6 @@
 
 #pragma once
 #include <Leaf/Sinks/Sink.hpp>
-#include <Leaf/Details/StringBuilder.hpp>
 #include <Leaf/Details/NullMutex.hpp>
 
 #include <fstream>
@@ -27,11 +26,6 @@ namespace Leaf::Sinks
 			_Out.write(output.data(), output.size());
 		}
 
-		void SetPattern(std::string_view& pattern) override
-		{
-			_StrBuilder.SetPattern(pattern);
-		}
-
 		void OpenNewFilePath(std::string_view& filePath)
 		{
 			std::lock_guard<Mutex> l(_Mutex);
@@ -40,14 +34,11 @@ namespace Leaf::Sinks
 		}
 	private:
 		Mutex _Mutex;
-		Details::StringBuilder _StrBuilder;
 		std::ofstream _Out;
 	};
 
-	template<> BasicFileSink<Details::NullMutex>::BasicFileSink(std::string_view filePath) :
-		_StrBuilder() { _Out.open(filePath.data()); }
-	template<> BasicFileSink<std::mutex>::BasicFileSink(std::string_view filePath) :
-		_StrBuilder() { _Out.open(filePath.data()); }
+	template<> BasicFileSink<Details::NullMutex>::BasicFileSink(std::string_view filePath) { _Out.open(filePath.data()); }
+	template<> BasicFileSink<std::mutex>::BasicFileSink(std::string_view filePath) { _Out.open(filePath.data()); }
 
 	using BasicFileSinkST = BasicFileSink<Details::NullMutex>;
 	using BasicFileSinkMT = BasicFileSink<std::mutex>;
