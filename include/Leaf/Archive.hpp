@@ -1,3 +1,5 @@
+// Copyright(c) 2021-present, Noah LeBlanc.
+
 #pragma once
 #include <Leaf/Common.hpp>
 #include <Leaf/Details/NullMutex.hpp>
