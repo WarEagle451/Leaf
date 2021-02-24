@@ -1,11 +1,13 @@
 // Copyright(c) 2021-present, Noah LeBlanc.
 
 #pragma once
-#include <Leaf/Details/Archive.hpp>
+#include <Leaf/Archive.hpp>
 #include <Leaf/Sinks/Sink.hpp>
 #include <Leaf/Details/Unpack.hpp>
 #include <Leaf/Details/Payload.hpp>
 #include <Leaf/Details/ThreadPool.hpp>
+
+#include <iomanip>
 
 namespace Leaf
 {
@@ -16,18 +18,15 @@ namespace Leaf
 	public:
 		explicit Logger(std::string&& name) :
 			_Name(std::move(name)),
-			_Level(Severity::Trace),
-			_Archive() {}
+			_Level(Severity::Trace) {}
 		template<typename It> Logger(std::string&& name, It begin, It end) :
 			_Name(std::move(name)),
 			_Level(Severity::Trace),
-			_Sinks(begin, end),
-			_Archive() {}
+			_Sinks(begin, end) {}
 		Logger(std::string&& name, SinkPtr sink) :
 			_Name(std::move(name)),
 			_Level(Severity::Trace),
-			_Sinks(1, sink),
-			_Archive() {}
+			_Sinks{ std::move(sink) } {}
 
 		template<typename T> void Log(Severity severity, const T& type)
 		{
@@ -88,44 +87,42 @@ namespace Leaf
 
 		void SetPattern(std::string_view pattern)
 		{
-			std::lock_guard<std::mutex> l(_Mutex);
 			for (SinkPtr& sink : _Sinks)
 				sink->SetPattern(pattern);
 		}
 
-		std::vector<SinkPtr>& GetSinks()
+		const std::vector<SinkPtr>& GetSinks() { return _Sinks; }
+
+		void EnableArchive(std::shared_ptr<ArchiveBase> archive)
 		{
-			std::lock_guard<std::mutex> l(_Mutex);
-			return _Sinks;
+			_ArchiveSink = archive;
+			Details::ThreadPool::Get().AdjustPoolSize(Details::ThreadPool::Get().Size() + 1);
 		}
 
-		void EnableArchive(std::string_view pattern, size_t capacity)	{ _Archive.Enable(pattern, capacity); }
-		void DisableArchive()											{ _Archive.Disable(); }
-		const std::deque<LogMessage>& GetArchiveData()					{ return _Archive.Data(); }
-		void ClearArchive()												{ _Archive.Clear(); }
+		void DisableArchive()							{ _ArchiveSink.reset(); }
+		const std::deque<LogMessage>& GetArchiveData()	{ return _ArchiveSink->GetBuffer(); }
+		void ClearArchive()								{ _ArchiveSink->Clear(); }
 	private:
 		void Submit(const Details::Payload& payload)
 		{
-			if (_Archive.Enabled())
-				_Archive.Push(payload);
 			if (payload.Log.Level >= _Level)
+			{
+				_ArchiveSink->Store(payload);
 				for (SinkPtr& sink : _Sinks)
 					if (sink->Loggable(payload.Log.Level))
-					{
-						std::promise<bool> p;
-						std::future<bool> f(p.get_future());
-						Details::ThreadPool::Get().Queue([&]{ sink->Log(payload); p.set_value(true); }); /// TODO: payload is not being referenced
-						f.wait();
-					}
+						Details::ThreadPool::Get().Queue([sink, payload]{ sink->Log(payload); });
+				Details::ThreadPool::Get().Wait();
+			}
 		}
 	private:
 		std::string _Name;
 		a_Severity _Level;
 		std::vector<SinkPtr> _Sinks;
-		Details::Archive _Archive;
+		std::shared_ptr<ArchiveBase> _ArchiveSink;
 
+		/// TODO: maybe make an Unpacker class
 		std::ostringstream _OSS;
 		std::vector<std::string> _UnpackedStrings;
-		std::mutex _Mutex;
+		std::mutex _Mutex; // Get Rid of this
 	};
 }

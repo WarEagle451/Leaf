@@ -27,16 +27,16 @@ namespace Leaf::Sinks
 			_Out.write(output.data(), output.size());
 		}
 
-		void SetPattern(std::string_view pattern) override
+		void SetPattern(std::string_view& pattern) override
 		{
 			_StrBuilder.SetPattern(pattern);
 		}
 
-		void OpenNewFilePath(std::string_view filePath)
+		void OpenNewFilePath(std::string_view& filePath)
 		{
 			std::lock_guard<Mutex> l(_Mutex);
 			_Out.close();
-			_Out.open(filePath);
+			_Out.open(filePath.data());
 		}
 	private:
 		Mutex _Mutex;
@@ -45,9 +45,9 @@ namespace Leaf::Sinks
 	};
 
 	template<> BasicFileSink<Details::NullMutex>::BasicFileSink(std::string_view filePath) :
-		_StrBuilder() { _Out.open(filePath); }
+		_StrBuilder() { _Out.open(filePath.data()); }
 	template<> BasicFileSink<std::mutex>::BasicFileSink(std::string_view filePath) :
-		_StrBuilder() { _Out.open(filePath); }
+		_StrBuilder() { _Out.open(filePath.data()); }
 
 	using BasicFileSinkST = BasicFileSink<Details::NullMutex>;
 	using BasicFileSinkMT = BasicFileSink<std::mutex>;
