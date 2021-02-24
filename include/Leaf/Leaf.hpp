@@ -13,6 +13,8 @@ namespace Leaf
 	static void Deregister(std::string_view loggerName)		{ Details::Registry::Get().Deregister(loggerName); }
 
 	static std::shared_ptr<Logger> Get(std::string_view loggerName)	{ Details::Registry::Get().GetLogger(loggerName); }
-	static void SetPattern(std::string_view pattern)				{ Details::Registry::Get().SetPattern(pattern); }
-	static void SetLevel(Severity severity)							{ Details::Registry::Get().SetLevel(severity); }
+	static size_t ThreadPoolSize()									{ return Details::Registry::Get().TPSize(); }
+
+	static void SetPattern(std::string_view pattern)	{ Details::Registry::Get().SetPattern(pattern); }
+	static void SetLevel(Severity severity)				{ Details::Registry::Get().SetLevel(severity); }
 }

@@ -19,14 +19,15 @@ namespace Leaf::Details
 		using Job = std::function<void()>;
 	private:
 		ThreadPool() :
-			_Shutdown(false) {}
+			_Shutdown(false),
+			_TasksRunning(0) {}
 
 		~ThreadPool()
 		{
 			{
-				std::lock_guard<std::mutex> l(_Mutex);
+				std::unique_lock<std::mutex> l(_Mutex);
 				_Shutdown = true;
-				_Condition.notify_all();
+				cv_Task.notify_all();
 			}
 
 			for (std::thread& thread : _Threads)
@@ -49,8 +50,19 @@ namespace Leaf::Details
 		void Queue(Job job)
 		{
 			std::lock_guard<std::mutex> l(_Mutex);
-			_JobQueue.emplace(std::move(job));
-			_Condition.notify_one();
+			_JobQueue.emplace(std::forward<Job>(job));
+			cv_Task.notify_one();
+		}
+
+		void Wait()
+		{
+			std::unique_lock<std::mutex> l(_Mutex);
+			cv_Finished.wait(l, [this](){ return _JobQueue.empty() && _TasksRunning == 0; }); /// Why yeeting this destorys the logger
+		}
+
+		size_t Size()
+		{
+			return _Threads.size();
 		}
 	private:
 		void Task()
@@ -59,27 +71,32 @@ namespace Leaf::Details
 
 			while (true)
 			{
+				std::unique_lock<std::mutex> l(_Mutex);
+				cv_Task.wait(l, [this](){ return _Shutdown || !_JobQueue.empty(); });
+			
+				if (!_JobQueue.empty())
 				{
-					std::unique_lock<std::mutex> l(_Mutex);
-
-					while (!_Shutdown && _JobQueue.empty())
-						_Condition.wait(l);
-
-					if (_JobQueue.empty())
-						return;
-
+					_TasksRunning++;
 					job = std::move(_JobQueue.front());
 					_JobQueue.pop();
+			
+					l.unlock();
+					job();
+					l.lock();
+			
+					_TasksRunning--;
+					cv_Finished.notify_one();
 				}
-
-				job();
+				else if (_Shutdown)
+					break;
 			}
 		}
 	private:
 		std::vector<std::thread> _Threads;
 		std::queue<Job> _JobQueue;
 		std::mutex _Mutex;
-		std::condition_variable _Condition;
+		std::condition_variable cv_Task, cv_Finished;
 		std::atomic<bool> _Shutdown;
+		std::atomic<uint32_t> _TasksRunning;
 	};
 }
