@@ -16,9 +16,6 @@ namespace Leaf::Sinks
 
 		void Log(const Details::Payload& payload) override
 		{
-			if (payload.Log.Level < _Level)
-				return;
-
 			std::string output(_StrBuilder.BuildOutput(payload));
 			output += '\n';
 
